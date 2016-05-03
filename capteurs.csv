@@ -1,0 +1,3 @@
+Capteur LM76;I2C;(Temp)
+Capteur HCM5883;I2C;(Compas 3 axes)
+Capteur HTU21D;I2C;(Hum+Temp)
