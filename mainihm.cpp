@@ -33,6 +33,21 @@ MainIhm::MainIhm(QWidget *parent) :
     chDate += QString::number(QDateTime::currentDateTime().time().second());
     ui->leNomMission->setText("Mission"+chDate);
 
+    // objet voie série
+    serial = new QSerialPort(this);
+    serial->setPortName("ttyUSB0");
+    serial->setBaudRate(QSerialPort::Baud9600);
+    serial->setDataBits(QSerialPort::Data8);
+    serial->setParity(QSerialPort::NoParity);
+    serial->setStopBits(QSerialPort::OneStop);
+    serial->setFlowControl(QSerialPort::NoFlowControl);
+    if (serial->open(QIODevice::ReadWrite)) {
+        serial->setRequestToSend(false);
+        qDebug() << "Connected to ttyUSB0";
+        connect(serial, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+    } else
+        qDebug() << "Impossible to connect to ttyUSB0";
+/*
     // liste des ports séries
     QList<QSerialPortInfo> lps = QSerialPortInfo::availablePorts();
     int nbps = lps.size();
@@ -41,7 +56,7 @@ MainIhm::MainIhm(QWidget *parent) :
     for(int i=0 ; i<nbps ; i++) {
         ui->cbListePortSerie->addItem(lps.at(i).portName());
     } // for
-
+*/
     // position initiale sur avant mission
     ui->tabWidget->setCurrentIndex(0);
 }
@@ -49,6 +64,9 @@ MainIhm::MainIhm(QWidget *parent) :
 MainIhm::~MainIhm()
 {
     delete ui;
+    serial->close();
+    delete serial;
+    //delete tRec;
 }
 
 void MainIhm::on_pbTransfertDrone_clicked()
@@ -71,28 +89,31 @@ void MainIhm::on_pbNewMission_2_clicked()
 
 void MainIhm::on_pbTestData_clicked()
 {
- QSerialPort sp;
- sp.setPortName(ui->cbListePortSerie->currentText()); // port choisi dans la combo box
- sp.setBaudRate(sp.Baud9600);
- sp.setParity(sp.NoParity);
- sp.setFlowControl(sp.NoFlowControl);
- sp.setDataBits(sp.Data8);
- sp.setStopBits(sp.OneStop);
- sp.setRequestToSend(false);
- bool res=sp.open(QIODevice::ReadWrite);
- if (!res) {
-     ui->pbTestData->setText("Erreur O !, Retry !");
-     qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'ouvrir le port série.";
- } else {
-    int ret = sp.write("[TT]");  // envoi une trame de test
+    qDebug() << "envoi de la commande...";
+    int ret = serial->write("[TT]");  // envoi une trame de test
     if (ret != 4) {
         ui->pbTestData->setText("Erreur W !, Retry !");
         qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
     } else {
-        QByteArray qbaRep = sp.read(4);
-        ui->pbTestData->setText("test OK !, Retry !");
-        qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
+        recPossible=false;
+        do {
+            recPossible=serial->waitForReadyRead(5000);
+            if (recPossible && serial->bytesAvailable() > 3) {
+                QByteArray qbaRep = serial->readAll();
+                ui->pbTestData->setText("test OK !, Retry !");
+                qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
+                break;
+            } // if
+            if (recPossible && serial->bytesAvailable() < 4) {
+               qDebug() << "Réception incomplète de la réponse";
+            } // if
+        } while(recPossible);  // while
     } // else ret
- } // else res
- sp.close();
+
 }
+
+void MainIhm::onReadyRead()
+{
+  qDebug() << "Des cars arrivent...";
+}
+
