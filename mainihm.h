@@ -11,6 +11,10 @@
 #include <QFile>
 #include <unistd.h>
 
+#define TIMEOUT 5000
+typedef unsigned short US;
+typedef unsigned char UC;
+
 namespace Ui {
 class MainIhm;
 }
@@ -30,7 +34,12 @@ private slots:
     void on_pbTestData_clicked();
     void onReadyRead();
 
+    void on_pbDepartAcqMes_clicked();
+
+    void on_pbArretAcqMes_clicked();
+
 private:
+    US crc16(UC *tab,int nb);
     Ui::MainIhm *ui;
     QSerialPort *serial; // objet de gestion de la liaison série
 //    QTimer *tRec;   // timer de limite de réception de la voie série

@@ -73,6 +73,8 @@ void MainIhm::on_pbTransfertDrone_clicked()
 {
     // s'assurer de la connexion de la liaison DATA
     // envoi des informations de configuration vers le drone.
+    // envoi des informations d'incrustation
+    // envoi du départ mission
 
     ui->tabWidget->setCurrentIndex(1);
 }
@@ -89,31 +91,138 @@ void MainIhm::on_pbNewMission_2_clicked()
 
 void MainIhm::on_pbTestData_clicked()
 {
-    qDebug() << "envoi de la commande...";
-    int ret = serial->write("[TT]");  // envoi une trame de test
-    if (ret != 4) {
-        ui->pbTestData->setText("Erreur W !, Retry !");
-        qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
-    } else {
-        recPossible=false;
-        do {
-            recPossible=serial->waitForReadyRead(5000);
-            if (recPossible && serial->bytesAvailable() > 3) {
-                QByteArray qbaRep = serial->readAll();
-                ui->pbTestData->setText("test OK !, Retry !");
-                qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
-                break;
-            } // if
-            if (recPossible && serial->bytesAvailable() < 4) {
-               qDebug() << "Réception incomplète de la réponse";
-            } // if
-        } while(recPossible);  // while
-    } // else ret
-
-}
+    qDebug() << "envoi de la commande TEST...";
+    int nb=3;
+    while(nb>0) {
+        nb--; // essai de transmission
+        int ret = serial->write("[TT]");  // envoi une trame de test
+        if (ret != 4) {
+            ui->pbTestData->setText("Erreur W !, Retry !");
+            qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
+        } else {
+            recPossible=false;
+            do {
+                recPossible=serial->waitForReadyRead(TIMEOUT);
+                if (recPossible && serial->bytesAvailable() > 3) {
+                    QByteArray qbaRep = serial->readAll();
+                    if (qbaRep == "[AA]") {
+                        ui->pbTestData->setText("test OK !, Retry !");
+                        nb=0; // pas de nouveau essai de transmission
+                    } else
+                        ui->pbTestData->setText("test KO !, Retry !");
+                    qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
+                    break;
+                } // if
+                if (recPossible && serial->bytesAvailable() < 4) {
+                    qDebug() << "Réception incomplète de la réponse";
+                } // if
+            } while(recPossible);  // while
+        } // else ret
+    } // while nb essai 3 fois de communiquer si erreur
+} // on_pbTestData_clicked
 
 void MainIhm::onReadyRead()
 {
   qDebug() << "Des cars arrivent...";
 }
 
+
+void MainIhm::on_pbDepartAcqMes_clicked()
+{
+    US crc16c;
+    qDebug() << "envoi de la commande START MESURES...";
+    int nb=3;  // 3 essais de transmission max
+    while(nb>0) {
+        nb--; // essai de transmission
+        int ret = serial->write("[01]");  // envoi  trame
+        if (ret != 4) {
+            ui->pbTestData->setText("Erreur W !, Retry !");
+            qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
+        } else {
+            int timer = ui->leTimer->text().toInt();
+            char tabTimer[5];
+            sprintf(tabTimer, "%05d", timer);
+            crc16c = crc16((unsigned char *)tabTimer,5);
+            serial->write((char *)tabTimer,5);    // envoi de la valeur du timer d'envoi des mesures
+            serial->write((char *)&crc16c, 2);
+            recPossible=false;
+            do {
+                recPossible=serial->waitForReadyRead(TIMEOUT);
+                if (recPossible && (serial->bytesAvailable()>3) ) {
+                    QByteArray qbaRep = serial->readAll();
+                    if (qbaRep == "[AA]") {
+                        ui->pbTestData->setText("test OK !, Retry !");
+                        nb=0; // pas de nouveau essai de transmission
+                    } else
+                        ui->pbTestData->setText("test KO !, Retry !");
+                    qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
+                    break;
+                } // if
+                if (recPossible && serial->bytesAvailable() < 4) {
+                    qDebug() << "Réception incomplète de la réponse";
+                } // if
+            } while(recPossible);  // while
+        } // else ret
+    } // while nb essai 3 fois de communiquer si erreur
+} // on_pbDepartAcqMes_clicked
+
+US MainIhm::crc16(UC *tab,int nb)
+{
+    UC nbDec,         // indique le nombre de décalage de l'octet */
+       yaUn,          // booleen si bit = 1 alors =1
+       ind;           // indique l'indice dans la chaine
+    US crc;  // contient le crc16
+
+    crc = 0xFFFF;
+    ind = 0;
+
+    do {
+        crc ^= (US)tab[ind];
+        nbDec = 0;
+        do {
+            if ((crc & 0x0001) == 1)
+                yaUn = 1;
+            else
+                yaUn = 0;
+            crc >>= 1;
+            if (yaUn)
+                crc ^= 0xA001;
+            nbDec++;
+        } while (nbDec < 8);
+        ind++;
+    } while (ind < nb);
+    return(crc);
+} // crc16
+
+void MainIhm::on_pbArretAcqMes_clicked()
+{
+    qDebug() << "envoi de la commande ARRET MESURES...";
+    int nb=3;  // 3 essais de transmission max
+    while(nb>0) {
+        nb--; // essai de transmission
+        int ret = serial->write("[02]");  // envoi  trame
+        if (ret != 4) {
+            ui->pbTestData->setText("Erreur W !, Retry !");
+            qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
+        } else {
+            recPossible=false;
+            do {
+                recPossible=serial->waitForReadyRead(TIMEOUT);
+                if (recPossible && (serial->bytesAvailable()>3) ) {
+                    QByteArray qbaRep = serial->readAll();
+                    if (qbaRep == "[AA]") {
+                        ui->pbTestData->setText("test OK !, Retry !");
+                        nb=0; // pas de nouveau essai de transmission
+                    } else
+                        ui->pbTestData->setText("test KO !, Retry !");
+                    qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
+                    break;
+                } // if
+                if (recPossible && serial->bytesAvailable() < 4) {
+                    qDebug() << "Réception incomplète de la réponse";
+                } // if
+            } while(recPossible);  // while
+        } // else ret
+    } // while nb essai 3 fois de communiquer si erreur
+
+} // on_pbArretAcqMes_clicked
