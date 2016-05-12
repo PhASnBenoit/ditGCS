@@ -15,6 +15,7 @@ TEMPLATE = app
 SOURCES += main.cpp\
         mainihm.cpp
 
-HEADERS  += mainihm.h
+HEADERS  += mainihm.h \
+    global.h
 
 FORMS    += mainihm.ui
