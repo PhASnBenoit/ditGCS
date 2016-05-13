@@ -47,16 +47,7 @@ MainIhm::MainIhm(QWidget *parent) :
         connect(serial, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
     } else
         qDebug() << "Impossible to connect to ttyUSB0";
-/*
-    // liste des ports séries
-    QList<QSerialPortInfo> lps = QSerialPortInfo::availablePorts();
-    int nbps = lps.size();
-    if (nbps==0)
-        ui->cbListePortSerie->addItem("Pas de port série !");
-    for(int i=0 ; i<nbps ; i++) {
-        ui->cbListePortSerie->addItem(lps.at(i).portName());
-    } // for
-*/
+
     // position initiale sur avant mission
     ui->tabWidget->setCurrentIndex(0);
 }
@@ -75,14 +66,19 @@ void MainIhm::on_pbTransfertDrone_clicked()
     // envoi des informations de configuration vers le drone.
     // envoi des informations d'incrustation
     // envoi du départ mission
-
+    qDebug() << "envoi de la commande [00] START MISSION...";
+    emettre("[00]§",5);
     ui->tabWidget->setCurrentIndex(1);
 }
 
 void MainIhm::on_pbStopperMission_clicked()
 {
+    qDebug() << "STOPPER MISSION !";
+    on_pbArretAcqMes_clicked();
+    qDebug() << "envoi de la commande [99] STOP MISSION...";
+    emettre("[99]§",5);
     ui->tabWidget->setCurrentIndex(2);
-}
+} // on_pbStopperMission_clicked
 
 void MainIhm::on_pbNewMission_2_clicked()
 {
@@ -91,80 +87,15 @@ void MainIhm::on_pbNewMission_2_clicked()
 
 void MainIhm::on_pbTestData_clicked()
 {
-    qDebug() << "envoi de la commande TEST...";
-    int nb=3;
-    while(nb>0) {
-        nb--; // essai de transmission
-        int ret = serial->write("[TT]");  // envoi une trame de test
-        if (ret != 4) {
-            ui->pbTestData->setText("Erreur W !, Retry !");
-            qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
-        } else {
-            recPossible=false;
-            do {
-                recPossible=serial->waitForReadyRead(TIMEOUT);
-                if (recPossible && serial->bytesAvailable() > 3) {
-                    QByteArray qbaRep = serial->readAll();
-                    if (qbaRep == "[AA]") {
-                        ui->pbTestData->setText("test OK !, Retry !");
-                        nb=0; // pas de nouveau essai de transmission
-                    } else
-                        ui->pbTestData->setText("test KO !, Retry !");
-                    qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
-                    break;
-                } // if
-                if (recPossible && serial->bytesAvailable() < 4) {
-                    qDebug() << "Réception incomplète de la réponse";
-                } // if
-            } while(recPossible);  // while
-        } // else ret
-    } // while nb essai 3 fois de communiquer si erreur
+    qDebug() << "envoi de la commande [TT] TEST...";
+    emettre("[TT]§",5);
 } // on_pbTestData_clicked
 
 void MainIhm::onReadyRead()
 {
   qDebug() << "Des cars arrivent...";
-}
+} // onReadyRead
 
-
-void MainIhm::on_pbDepartAcqMes_clicked()
-{
-    US crc16c;
-    qDebug() << "envoi de la commande START MESURES...";
-    int nb=3;  // 3 essais de transmission max
-    while(nb>0) {
-        nb--; // essai de transmission
-        int ret = serial->write("[01]");  // envoi  trame
-        if (ret != 4) {
-            ui->pbTestData->setText("Erreur W !, Retry !");
-            qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
-        } else {
-            int timer = ui->leTimer->text().toInt();
-            char tabTimer[5];
-            sprintf(tabTimer, "%05d", timer);
-            crc16c = crc16((unsigned char *)tabTimer,5);
-            serial->write((char *)tabTimer,5);    // envoi de la valeur du timer d'envoi des mesures
-            serial->write((char *)&crc16c, 2);
-            recPossible=false;
-            do {
-                recPossible=serial->waitForReadyRead(TIMEOUT);
-                if (recPossible && (serial->bytesAvailable()>3) ) {
-                    QByteArray qbaRep = serial->readAll();
-                    if (qbaRep == "[AA]") {
-                        ui->pbTestData->setText("test OK !, Retry !");
-                        nb=0; // pas de nouveau essai de transmission
-                    } else
-                        ui->pbTestData->setText("test KO !, Retry !");
-                    qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
-                    break;
-                } // if
-                if (recPossible && serial->bytesAvailable() < 4) {
-                    qDebug() << "Réception incomplète de la réponse";
-                } // if
-            } while(recPossible);  // while
-        } // else ret
-    } // while nb essai 3 fois de communiquer si erreur
-} // on_pbDepartAcqMes_clicked
 
 US MainIhm::crc16(UC *tab,int nb)
 {
@@ -194,14 +125,64 @@ US MainIhm::crc16(UC *tab,int nb)
     return(crc);
 } // crc16
 
+
+void MainIhm::on_pbDepartAcqMes_clicked()
+{
+    char trame[255];
+    char chCrc16[10];
+    char chTimer[10];
+    US crc16c;
+    qDebug() << "envoi de la commande [01] START MESURES...";
+
+    int timer = ui->leTimer->text().toInt();
+    sprintf(chTimer, "%05d", timer);
+
+    crc16c = crc16((unsigned char *)tabTimer,5);
+    sprintf(chCrc16,"%04x",crc16c);
+
+    sprintf(trame,"[01]%s;%s§",tabTimer, chCrc16);
+    emettre(trame, strlen(trame);
+} // on_pbDepartAcqMes_clicked
+
+
 void MainIhm::on_pbArretAcqMes_clicked()
 {
-    qDebug() << "envoi de la commande ARRET MESURES...";
+    qDebug() << "envoi de la commande [02] ARRET MESURES...";
+    emettre("[02]§",5);
+} // on_pbArretAcqMes_clicked
+
+
+void MainIhm::on_pbEmettreOrdre_clicked()
+{
+    US crc16c;
+    char trame[255];
+    char ordre[50];
+    qDebug() << "envoi de la commande [05] ORDRE CAMERA...";
+
+    strcpy(ordre,"GET /");
+    strcat(ordre, ui->cbRep->currentText().toStdString().c_str());
+    strcat(ordre, "/");
+    int pos = ui->cbApp->currentText().indexOf(' ');
+    strcat(ordre, ui->cbApp->currentText().left(pos).toStdString().c_str());
+    strcat(ordre,"?t=goprohero&p=%");
+    strcat(ordre, ui->cbVal->currentText().toStdString().c_str());
+    strcat(ordre, " HTTP/1.1\r\n\r\n"); // fin d'entête requête HTTP
+
+    crc16c = crc16((unsigned char *)ordre,strlen(ordre));
+    sprintf(chCrc16,"%04x",crc16c);
+
+    sprintf(trame, "[05]%s;%s§", ordre, chCrc16);
+    emettre(trame, strlen(trame));
+} // on_pbEmettreOrdre_clicked
+
+
+int MainIhm::emettre(char *trame, int nb)
+{
     int nb=3;  // 3 essais de transmission max
     while(nb>0) {
         nb--; // essai de transmission
-        int ret = serial->write("[02]");  // envoi  trame
-        if (ret != 4) {
+        int ret = serial->write(trame,nb);  // envoi  trame
+        if (ret != nb) {
             ui->pbTestData->setText("Erreur W !, Retry !");
             qDebug() << "MainIhm:on_pbTestData_clicked: Impossible d'écrire dans le port série.";
         } else {
@@ -224,5 +205,5 @@ void MainIhm::on_pbArretAcqMes_clicked()
             } while(recPossible);  // while
         } // else ret
     } // while nb essai 3 fois de communiquer si erreur
-
 } // on_pbArretAcqMes_clicked
+
