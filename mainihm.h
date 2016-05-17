@@ -33,10 +33,11 @@ private slots:
     void on_pbNewMission_2_clicked();
     void on_pbTestData_clicked();
     void onReadyRead();
-
     void on_pbDepartAcqMes_clicked();
-
     void on_pbArretAcqMes_clicked();
+    int emettre(char *trame, int nb);
+
+    void on_pbEmettreOrdre_clicked();
 
 private:
     US crc16(UC *tab,int nb);

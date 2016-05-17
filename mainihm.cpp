@@ -62,21 +62,64 @@ MainIhm::~MainIhm()
 
 void MainIhm::on_pbTransfertDrone_clicked()
 {
+    char trame[500]={0}, ordre[500]={0};
+    char chCrc16[5]={0};
+    US crc16c;
+
     // s'assurer de la connexion de la liaison DATA
-    // envoi des informations de configuration vers le drone.
-    // envoi des informations d'incrustation
-    // envoi du départ mission
-    qDebug() << "envoi de la commande [00] START MISSION...";
-    emettre("[00]§",5);
-    ui->tabWidget->setCurrentIndex(1);
-}
+    qDebug() << "envoi de la commande [TT] TEST...";
+    bool res=emettre((char *)"[TT]!",5);
+
+    if (res > 0) {  // test ok
+        // envoi des informations de configuration vers le drone.
+        qDebug() << "envoi de la commande [03] DATA CONFIG MISSION...";
+        sprintf(ordre,"%s;%s", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
+        crc16c = crc16((unsigned char *)ordre,strlen(ordre));
+        sprintf(chCrc16,"%04x",crc16c);
+        sprintf(trame,"[03]%s;%s!", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
+        emettre(trame,strlen(trame));
+
+        // envoi des informations d'incrustation
+        qDebug() << "envoi de la commande [04] DATA INCRUSTATION DEPART MISSION...";
+        // ouvrir le fichier config.ini contenant les capteurs
+        QFile *file = new QFile("../ditGCS/config.ini");
+        if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
+            qDebug() << "Erreur ouverture du fichier config.ini";
+        // lire les lignes et former la trame
+        while (!file->atEnd()) {         // lecture des lignes du fichier
+             QByteArray line = file->readLine();
+             if (isdigit(line[0])) {    // si le premier car de la ligne est 0-9
+                 qDebug() << "CONFIG.INI: " << line;
+                 QList<QByteArray> parties = line.split(';'); // extrait chaque partie de la ligne
+                 for (int j=0 ; j<parties.size() ; j++) {
+                     strcat(ordre, parties.at(j).toStdString().c_str());
+                     strcat(ordre,";");
+                 } // for j
+                 ordre[strlen(ordre)-1]=0;  // enleve le dernier ;
+                 strcat(ordre,"@");
+             } // if
+        } // while
+        ordre[strlen(ordre)-1]=0;  // enleve le dernier ;
+        file->close();
+        delete file;
+        crc16c = crc16((unsigned char *)ordre,strlen(ordre));
+        sprintf(chCrc16,"%04x",crc16c);
+        sprintf(trame, "[04]%s;%s!", ordre, chCrc16);
+        emettre(trame,strlen(trame));
+
+        // envoi du départ mission
+        qDebug() << "envoi de la commande [00] START MISSION...";
+        emettre((char *)"[00]!",5);
+        ui->tabWidget->setCurrentIndex(1);
+    } // if test ok
+} // on_pbTransfertDrone_clicked
 
 void MainIhm::on_pbStopperMission_clicked()
 {
     qDebug() << "STOPPER MISSION !";
     on_pbArretAcqMes_clicked();
     qDebug() << "envoi de la commande [99] STOP MISSION...";
-    emettre("[99]§",5);
+    emettre((char *)"[99]!",5);
     ui->tabWidget->setCurrentIndex(2);
 } // on_pbStopperMission_clicked
 
@@ -88,7 +131,7 @@ void MainIhm::on_pbNewMission_2_clicked()
 void MainIhm::on_pbTestData_clicked()
 {
     qDebug() << "envoi de la commande [TT] TEST...";
-    emettre("[TT]§",5);
+    emettre((char *)"[TT]!",5);
 } // on_pbTestData_clicked
 
 void MainIhm::onReadyRead()
@@ -137,18 +180,18 @@ void MainIhm::on_pbDepartAcqMes_clicked()
     int timer = ui->leTimer->text().toInt();
     sprintf(chTimer, "%05d", timer);
 
-    crc16c = crc16((unsigned char *)tabTimer,5);
+    crc16c = crc16((unsigned char *)chTimer,5);
     sprintf(chCrc16,"%04x",crc16c);
 
-    sprintf(trame,"[01]%s;%s§",tabTimer, chCrc16);
-    emettre(trame, strlen(trame);
+    sprintf(trame,"[01]%s;%s!",chTimer, chCrc16);
+    emettre(trame, strlen(trame));
 } // on_pbDepartAcqMes_clicked
 
 
 void MainIhm::on_pbArretAcqMes_clicked()
 {
     qDebug() << "envoi de la commande [02] ARRET MESURES...";
-    emettre("[02]§",5);
+    emettre((char *)"[02]!",5);
 } // on_pbArretAcqMes_clicked
 
 
@@ -157,6 +200,7 @@ void MainIhm::on_pbEmettreOrdre_clicked()
     US crc16c;
     char trame[255];
     char ordre[50];
+    char chCrc16[5];
     qDebug() << "envoi de la commande [05] ORDRE CAMERA...";
 
     strcpy(ordre,"GET /");
@@ -171,16 +215,16 @@ void MainIhm::on_pbEmettreOrdre_clicked()
     crc16c = crc16((unsigned char *)ordre,strlen(ordre));
     sprintf(chCrc16,"%04x",crc16c);
 
-    sprintf(trame, "[05]%s;%s§", ordre, chCrc16);
+    sprintf(trame, "[05]%s;%s!", ordre, chCrc16);
     emettre(trame, strlen(trame));
 } // on_pbEmettreOrdre_clicked
 
 
 int MainIhm::emettre(char *trame, int nb)
 {
-    int nb=3;  // 3 essais de transmission max
-    while(nb>0) {
-        nb--; // essai de transmission
+    int nbe=3;  // 3 essais de transmission max
+    while(nbe>0) {
+        nbe--; // essai de transmission
         int ret = serial->write(trame,nb);  // envoi  trame
         if (ret != nb) {
             ui->pbTestData->setText("Erreur W !, Retry !");
@@ -189,21 +233,25 @@ int MainIhm::emettre(char *trame, int nb)
             recPossible=false;
             do {
                 recPossible=serial->waitForReadyRead(TIMEOUT);
-                if (recPossible && (serial->bytesAvailable()>3) ) {
+                if (recPossible && (serial->bytesAvailable()>4) ) {
                     QByteArray qbaRep = serial->readAll();
-                    if (qbaRep == "[AA]") {
+                    if (qbaRep == "[AA]!") {
                         ui->pbTestData->setText("test OK !, Retry !");
-                        nb=0; // pas de nouveau essai de transmission
+                        nbe=-1; // pas de nouveau essai de transmission
                     } else
                         ui->pbTestData->setText("test KO !, Retry !");
                     qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
                     break;
                 } // if
-                if (recPossible && serial->bytesAvailable() < 4) {
+                if (recPossible && serial->bytesAvailable() < 5) {
                     qDebug() << "Réception incomplète de la réponse";
                 } // if
             } while(recPossible);  // while
         } // else ret
     } // while nb essai 3 fois de communiquer si erreur
+    if (nbe==0)
+        return -1;
+    else
+        return 1;
 } // on_pbArretAcqMes_clicked
 
