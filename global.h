@@ -6,7 +6,4 @@ typedef struct {
     bool emMesVersGcs;
 } T_ConfigMission;
 
-typedef struct {
-} T
-
 #endif // GLOBAL_H

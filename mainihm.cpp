@@ -68,7 +68,7 @@ void MainIhm::on_pbTransfertDrone_clicked()
 
     // s'assurer de la connexion de la liaison DATA
     qDebug() << "envoi de la commande [TT] TEST...";
-    bool res=emettre((char *)"[TT]!",5);
+    bool res=emettre((char *)"\x02[TT]\x03",6);
 
     if (res > 0) {  // test ok
         // envoi des informations de configuration vers le drone.
@@ -76,7 +76,7 @@ void MainIhm::on_pbTransfertDrone_clicked()
         sprintf(ordre,"%s;%s", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
         crc16c = crc16((unsigned char *)ordre,strlen(ordre));
         sprintf(chCrc16,"%04x",crc16c);
-        sprintf(trame,"[03]%s;%s!", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
+        sprintf(trame,"\x02[03]%s;%s\x03", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
         emettre(trame,strlen(trame));
 
         // envoi des informations d'incrustation
@@ -104,12 +104,12 @@ void MainIhm::on_pbTransfertDrone_clicked()
         delete file;
         crc16c = crc16((unsigned char *)ordre,strlen(ordre));
         sprintf(chCrc16,"%04x",crc16c);
-        sprintf(trame, "[04]%s;%s!", ordre, chCrc16);
+        sprintf(trame, "\x02[04]%s;%s\x03", ordre, chCrc16);
         emettre(trame,strlen(trame));
 
         // envoi du départ mission
         qDebug() << "envoi de la commande [00] START MISSION...";
-        emettre((char *)"[00]!",5);
+        emettre((char *)"\x02[00]\x03",6);
         ui->tabWidget->setCurrentIndex(1);
     } // if test ok
 } // on_pbTransfertDrone_clicked
@@ -119,7 +119,7 @@ void MainIhm::on_pbStopperMission_clicked()
     qDebug() << "STOPPER MISSION !";
     on_pbArretAcqMes_clicked();
     qDebug() << "envoi de la commande [99] STOP MISSION...";
-    emettre((char *)"[99]!",5);
+    emettre((char *)"\x02[99]\x03",6);
     ui->tabWidget->setCurrentIndex(2);
 } // on_pbStopperMission_clicked
 
@@ -131,7 +131,7 @@ void MainIhm::on_pbNewMission_2_clicked()
 void MainIhm::on_pbTestData_clicked()
 {
     qDebug() << "envoi de la commande [TT] TEST...";
-    emettre((char *)"[TT]!",5);
+    emettre((char *)"\x02[TT]\x03",5);
 } // on_pbTestData_clicked
 
 void MainIhm::onReadyRead()
@@ -183,7 +183,7 @@ void MainIhm::on_pbDepartAcqMes_clicked()
     crc16c = crc16((unsigned char *)chTimer,5);
     sprintf(chCrc16,"%04x",crc16c);
 
-    sprintf(trame,"[01]%s;%s!",chTimer, chCrc16);
+    sprintf(trame,"\x02[01]%s;%s\x03",chTimer, chCrc16);
     emettre(trame, strlen(trame));
 } // on_pbDepartAcqMes_clicked
 
@@ -191,7 +191,7 @@ void MainIhm::on_pbDepartAcqMes_clicked()
 void MainIhm::on_pbArretAcqMes_clicked()
 {
     qDebug() << "envoi de la commande [02] ARRET MESURES...";
-    emettre((char *)"[02]!",5);
+    emettre((char *)"\x02[02]\x03",6);
 } // on_pbArretAcqMes_clicked
 
 
@@ -215,7 +215,7 @@ void MainIhm::on_pbEmettreOrdre_clicked()
     crc16c = crc16((unsigned char *)ordre,strlen(ordre));
     sprintf(chCrc16,"%04x",crc16c);
 
-    sprintf(trame, "[05]%s;%s!", ordre, chCrc16);
+    sprintf(trame, "\x02[05]%s;%s\x03", ordre, chCrc16);
     emettre(trame, strlen(trame));
 } // on_pbEmettreOrdre_clicked
 
@@ -233,9 +233,9 @@ int MainIhm::emettre(char *trame, int nb)
             recPossible=false;
             do {
                 recPossible=serial->waitForReadyRead(TIMEOUT);
-                if (recPossible && (serial->bytesAvailable()>4) ) {
+                if (recPossible && (serial->bytesAvailable()>5) ) {
                     QByteArray qbaRep = serial->readAll();
-                    if (qbaRep == "[AA]!") {
+                    if (qbaRep == "\x02[AA]\x03") {
                         ui->pbTestData->setText("test OK !, Retry !");
                         nbe=-1; // pas de nouveau essai de transmission
                     } else
@@ -243,7 +243,7 @@ int MainIhm::emettre(char *trame, int nb)
                     qDebug() << "Test liaison DATA : Réponse : " << qbaRep;
                     break;
                 } // if
-                if (recPossible && serial->bytesAvailable() < 5) {
+                if (recPossible && serial->bytesAvailable() < 6) {
                     qDebug() << "Réception incomplète de la réponse";
                 } // if
             } while(recPossible);  // while
