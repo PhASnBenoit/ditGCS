@@ -6,6 +6,8 @@ MainIhm::MainIhm(QWidget *parent) :
     ui(new Ui::MainIhm)
 {
     ui->setupUi(this);
+
+
     // init de la liste des capteurs suivant capteurs.csv
     // situé dans le dossier des sources
     QList<QByteArray> parties;
@@ -33,22 +35,16 @@ MainIhm::MainIhm(QWidget *parent) :
     chDate += QString::number(QDateTime::currentDateTime().time().second());
     ui->leNomMission->setText("Mission"+chDate);
 
-    // objet voie série
+    // liste des ports série dicponibles
     serial = new QSerialPort(this);
-    serial->setPortName("ttyUSB0");
-    serial->setBaudRate(QSerialPort::Baud9600);
-    serial->setDataBits(QSerialPort::Data8);
-    serial->setParity(QSerialPort::NoParity);
-    serial->setStopBits(QSerialPort::OneStop);
-    serial->setFlowControl(QSerialPort::NoFlowControl);
-    if (serial->open(QIODevice::ReadWrite)) {
-        serial->setRequestToSend(false);
-        qDebug() << "Connected to ttyUSB0";
-        connect(serial, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
-    } else
-        qDebug() << "Impossible to connect to ttyUSB0";
+    QList<QSerialPortInfo> listeSerialPort = QSerialPortInfo::availablePorts();
+    for(int i=0 ; i<listeSerialPort.size() ; i++) {
+        qDebug() << "MainIhm::MainIhm : " << listeSerialPort.at(i).portName() << " " << listeSerialPort.at(i).description();
+        ui->cbListePortSerie->addItem(listeSerialPort.at(i).portName());
+    } // for port série
 
     // position initiale sur avant mission
+    ui->pbTransfertDrone->setEnabled(false);
     ui->tabWidget->setCurrentIndex(0);
 }
 
@@ -131,42 +127,19 @@ void MainIhm::on_pbNewMission_2_clicked()
 void MainIhm::on_pbTestData_clicked()
 {
     qDebug() << "envoi de la commande [TT] TEST...";
-    emettre((char *)"\x02[TT]\x03",5);
+    int res = emettre((char *)"\x02[TT]\x03",6);
+    if (res == 1) {
+        ui->pbTransfertDrone->setEnabled(true);
+        qDebug() << "MainIhm::on_pbTestData_clicked: Test négatif !!!";
+    }else {
+        qDebug() << "MainIhm::on_pbTestData_clicked: Test négatif !!!";
+    } // else
 } // on_pbTestData_clicked
 
 void MainIhm::onReadyRead()
 {
   qDebug() << "Des cars arrivent...";
 } // onReadyRead
-
-
-US MainIhm::crc16(UC *tab,int nb)
-{
-    UC nbDec,         // indique le nombre de décalage de l'octet */
-       yaUn,          // booleen si bit = 1 alors =1
-       ind;           // indique l'indice dans la chaine
-    US crc;  // contient le crc16
-
-    crc = 0xFFFF;
-    ind = 0;
-
-    do {
-        crc ^= (US)tab[ind];
-        nbDec = 0;
-        do {
-            if ((crc & 0x0001) == 1)
-                yaUn = 1;
-            else
-                yaUn = 0;
-            crc >>= 1;
-            if (yaUn)
-                crc ^= 0xA001;
-            nbDec++;
-        } while (nbDec < 8);
-        ind++;
-    } while (ind < nb);
-    return(crc);
-} // crc16
 
 
 void MainIhm::on_pbDepartAcqMes_clicked()
@@ -220,6 +193,13 @@ void MainIhm::on_pbEmettreOrdre_clicked()
 } // on_pbEmettreOrdre_clicked
 
 
+
+void MainIhm::on_cbListePortSerie_activated(const QString &arg1)
+{
+    initVoieSerie(arg1);
+}
+
+
 int MainIhm::emettre(char *trame, int nb)
 {
     int nbe=3;  // 3 essais de transmission max
@@ -249,9 +229,62 @@ int MainIhm::emettre(char *trame, int nb)
             } while(recPossible);  // while
         } // else ret
     } // while nb essai 3 fois de communiquer si erreur
-    if (nbe==0)
+    if (nbe != -1)
         return -1;
     else
         return 1;
 } // on_pbArretAcqMes_clicked
+
+US MainIhm::crc16(UC *tab,int nb)
+{
+    UC nbDec,         // indique le nombre de décalage de l'octet */
+       yaUn,          // booleen si bit = 1 alors =1
+       ind;           // indique l'indice dans la chaine
+    US crc;  // contient le crc16
+
+    crc = 0xFFFF;
+    ind = 0;
+
+    do {
+        crc ^= (US)tab[ind];
+        nbDec = 0;
+        do {
+            if ((crc & 0x0001) == 1)
+                yaUn = 1;
+            else
+                yaUn = 0;
+            crc >>= 1;
+            if (yaUn)
+                crc ^= 0xA001;
+            nbDec++;
+        } while (nbDec < 8);
+        ind++;
+    } while (ind < nb);
+    return(crc);
+}
+
+int MainIhm::initVoieSerie(QString nomVs)
+{
+    // objet voie série
+    if (serial->isOpen()) {
+        qDebug() << "MainIhm::initVoieSerie: Disconnected to " << nomVs;
+        serial->close();
+    } // if open
+    serial->setPortName(nomVs);
+    serial->setBaudRate(QSerialPort::Baud9600);
+    serial->setDataBits(QSerialPort::Data8);
+    serial->setParity(QSerialPort::NoParity);
+    serial->setStopBits(QSerialPort::OneStop);
+    serial->setFlowControl(QSerialPort::NoFlowControl);
+    if (serial->open(QIODevice::ReadWrite)) {
+        serial->setRequestToSend(false);
+        qDebug() << "MainIhm::initVoieSerie: Connected to " << nomVs;
+        connect(serial, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
+        return 1;
+    } else {
+        qDebug() << "MainIhm::initVoieSerie: Impossible to connect to " << nomVs;
+        return -1;
+    }
+
+} // crc16
 

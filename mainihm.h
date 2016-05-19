@@ -38,6 +38,7 @@ private slots:
     void on_pbArretAcqMes_clicked();
     int emettre(char *trame, int nb);
     void on_pbEmettreOrdre_clicked();
+    void on_cbListePortSerie_activated(const QString &arg1);
 
 private:
     US crc16(UC *tab,int nb);
@@ -46,6 +47,7 @@ private:
     QByteArray qbaRep;  // réponse
     bool recPossible;  // flag de test reponse possible
     bool tempsEcoule;  // flag de réception voie série
+    int initVoieSerie(QString nomVs);
 };
 
 #endif // MAINIHM_H
