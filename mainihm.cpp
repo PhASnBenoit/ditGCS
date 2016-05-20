@@ -6,6 +6,10 @@ MainIhm::MainIhm(QWidget *parent) :
     ui(new Ui::MainIhm)
 {
     ui->setupUi(this);
+    ui->tabWidget->setTabEnabled(0,true);
+    ui->tabWidget->setTabEnabled(1,false);
+    ui->tabWidget->setTabEnabled(2,false);
+    ui->tabWidget->setCurrentWidget(0);
 
 
     // init de la liste des capteurs suivant capteurs.csv
@@ -17,11 +21,14 @@ MainIhm::MainIhm(QWidget *parent) :
     } // if fichier pas bon
     while (!file.atEnd()) {         // lecture des lignes du fichier
          QByteArray line = file.readLine();
-         if (line[0]!= '#') {    // si le premier car de la ligne pas un #
+         line = line.mid(0, line.size()-1);
+         if ( (line[0]>='0') && (line[0]<='9') ) {    // si la ligne décrit un capteur
              qDebug() << "MainIhm:capteurs.csv: " << line;
              parties = line.split(';'); // extrait chaque partie de la ligne
-             ui->lwCapteurs->addItem(QString(parties.at(0)));
-             ui->lwCapteurs2->addItem(QString(parties.at(0)));
+             ui->lwCapteurs->addItem(QString(line));
+             ui->lwCapteurs2->addItem(QString(line));
+             ui->lwCapteurs->selectAll();
+             ui->lwCapteurs2->selectAll();
          } // if
     } // while
     file.close();
@@ -35,7 +42,7 @@ MainIhm::MainIhm(QWidget *parent) :
     chDate += QString::number(QDateTime::currentDateTime().time().second());
     ui->leNomMission->setText("Mission"+chDate);
 
-    // liste des ports série dicponibles
+    // liste des ports série disponibles
     serial = new QSerialPort(this);
     QList<QSerialPortInfo> listeSerialPort = QSerialPortInfo::availablePorts();
     for(int i=0 ; i<listeSerialPort.size() ; i++) {
@@ -72,18 +79,20 @@ void MainIhm::on_pbTransfertDrone_clicked()
         sprintf(ordre,"%s;%s", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
         crc16c = crc16((unsigned char *)ordre,strlen(ordre));
         sprintf(chCrc16,"%04x",crc16c);
-        sprintf(trame,"\x02[03]%s;%s\x03", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
+        sprintf(trame,"\x02[03]%s;%s\x03", ordre, chCrc16);
         emettre(trame,strlen(trame));
 
         // envoi des informations d'incrustation
         qDebug() << "envoi de la commande [04] DATA INCRUSTATION DEPART MISSION...";
         // ouvrir le fichier config.ini contenant les capteurs
-        QFile *file = new QFile("../ditGCS/config.ini");
+        QFile *file = new QFile("capteurs.csv");
         if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
             qDebug() << "Erreur ouverture du fichier config.ini";
         // lire les lignes et former la trame
+        bzero(ordre, sizeof(ordre));
         while (!file->atEnd()) {         // lecture des lignes du fichier
              QByteArray line = file->readLine();
+             //line.at(line.size()-1) = 0;
              if (isdigit(line[0])) {    // si le premier car de la ligne est 0-9
                  qDebug() << "CONFIG.INI: " << line;
                  QList<QByteArray> parties = line.split(';'); // extrait chaque partie de la ligne
@@ -95,7 +104,6 @@ void MainIhm::on_pbTransfertDrone_clicked()
                  strcat(ordre,"@");
              } // if
         } // while
-        ordre[strlen(ordre)-1]=0;  // enleve le dernier ;
         file->close();
         delete file;
         crc16c = crc16((unsigned char *)ordre,strlen(ordre));
@@ -103,9 +111,23 @@ void MainIhm::on_pbTransfertDrone_clicked()
         sprintf(trame, "\x02[04]%s;%s\x03", ordre, chCrc16);
         emettre(trame,strlen(trame));
 
+        // Mise à jour de la date et heure de l'EDD
+        qDebug() << "envoi de la commande [09] Mise à jour de la date/heure de l'EDD...";
+        QDateTime dt = QDateTime::currentDateTime();
+        dt.addSecs(5);  // pour compenser le temps de transfert vers l'EDD
+        bzero(ordre, sizeof(ordre));
+        sprintf(ordre,"%s;%s",dt.date().toString("yy;MM;dd").toStdString().c_str(), dt.time().toString("HH;mm;ss").toStdString().c_str());
+        crc16c = crc16((unsigned char *)ordre,strlen(ordre));
+        sprintf(chCrc16,"%04x",crc16c);
+        sprintf(trame,"\x02[09]%s;%s\x03", ordre, chCrc16);
+        emettre(trame,strlen(trame));
+
         // envoi du départ mission
         qDebug() << "envoi de la commande [00] START MISSION...";
         emettre((char *)"\x02[00]\x03",6);
+        ui->tabWidget->setTabEnabled(0,false);
+        ui->tabWidget->setTabEnabled(1,true);
+        ui->tabWidget->setTabEnabled(2,false);
         ui->tabWidget->setCurrentIndex(1);
     } // if test ok
 } // on_pbTransfertDrone_clicked
@@ -116,11 +138,17 @@ void MainIhm::on_pbStopperMission_clicked()
     on_pbArretAcqMes_clicked();
     qDebug() << "envoi de la commande [99] STOP MISSION...";
     emettre((char *)"\x02[99]\x03",6);
+    ui->tabWidget->setTabEnabled(0,false);
+    ui->tabWidget->setTabEnabled(1,false);
+    ui->tabWidget->setTabEnabled(2,true);
     ui->tabWidget->setCurrentIndex(2);
 } // on_pbStopperMission_clicked
 
 void MainIhm::on_pbNewMission_2_clicked()
 {
+    ui->tabWidget->setTabEnabled(0,true);
+    ui->tabWidget->setTabEnabled(1,false);
+    ui->tabWidget->setTabEnabled(2,false);
     ui->tabWidget->setCurrentIndex(0);
 }
 
@@ -130,7 +158,7 @@ void MainIhm::on_pbTestData_clicked()
     int res = emettre((char *)"\x02[TT]\x03",6);
     if (res == 1) {
         ui->pbTransfertDrone->setEnabled(true);
-        qDebug() << "MainIhm::on_pbTestData_clicked: Test négatif !!!";
+        qDebug() << "MainIhm::on_pbTestData_clicked: Test positif !!!";
     }else {
         qDebug() << "MainIhm::on_pbTestData_clicked: Test négatif !!!";
     } // else

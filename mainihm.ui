@@ -15,6 +15,9 @@
   </property>
   <widget class="QWidget" name="centralWidget">
    <widget class="QTabWidget" name="tabWidget">
+    <property name="enabled">
+     <bool>true</bool>
+    </property>
     <property name="geometry">
      <rect>
       <x>10</x>
@@ -25,6 +28,12 @@
     </property>
     <property name="currentIndex">
      <number>0</number>
+    </property>
+    <property name="usesScrollButtons">
+     <bool>false</bool>
+    </property>
+    <property name="movable">
+     <bool>false</bool>
     </property>
     <widget class="QWidget" name="tabAvant">
      <attribute name="title">
@@ -46,7 +55,7 @@
        <property name="geometry">
         <rect>
          <x>350</x>
-         <y>240</y>
+         <y>90</y>
          <width>341</width>
          <height>39</height>
         </rect>
@@ -59,7 +68,7 @@
        <property name="geometry">
         <rect>
          <x>700</x>
-         <y>240</y>
+         <y>90</y>
          <width>421</width>
          <height>47</height>
         </rect>
@@ -71,23 +80,23 @@
       <widget class="QPushButton" name="pbTransfertDrone">
        <property name="geometry">
         <rect>
-         <x>810</x>
-         <y>1020</y>
-         <width>961</width>
-         <height>48</height>
+         <x>1420</x>
+         <y>977</y>
+         <width>351</width>
+         <height>91</height>
         </rect>
        </property>
        <property name="text">
-        <string>Transférer paramètres vers le drone et activer mission</string>
+        <string>Pendant Mission</string>
        </property>
       </widget>
       <widget class="QGroupBox" name="gbTD">
        <property name="geometry">
         <rect>
-         <x>40</x>
-         <y>700</y>
+         <x>1050</x>
+         <y>240</y>
          <width>731</width>
-         <height>371</height>
+         <height>291</height>
         </rect>
        </property>
        <property name="title">
@@ -110,7 +119,7 @@
         <property name="geometry">
          <rect>
           <x>140</x>
-          <y>150</y>
+          <y>120</y>
           <width>101</width>
           <height>39</height>
          </rect>
@@ -139,7 +148,7 @@
         <property name="geometry">
          <rect>
           <x>260</x>
-          <y>140</y>
+          <y>110</y>
           <width>141</width>
           <height>47</height>
          </rect>
@@ -155,7 +164,7 @@
         <property name="geometry">
          <rect>
           <x>20</x>
-          <y>240</y>
+          <y>180</y>
           <width>591</width>
           <height>39</height>
          </rect>
@@ -168,7 +177,7 @@
         <property name="geometry">
          <rect>
           <x>220</x>
-          <y>300</y>
+          <y>230</y>
           <width>215</width>
           <height>48</height>
          </rect>
@@ -181,9 +190,9 @@
       <widget class="QGroupBox" name="gbII">
        <property name="geometry">
         <rect>
-         <x>1050</x>
-         <y>400</y>
-         <width>711</width>
+         <x>20</x>
+         <y>540</y>
+         <width>1351</width>
          <height>561</height>
         </rect>
        </property>
@@ -210,9 +219,9 @@
         <property name="geometry">
          <rect>
           <x>30</x>
-          <y>260</y>
-          <width>631</width>
-          <height>271</height>
+          <y>190</y>
+          <width>1291</width>
+          <height>341</height>
          </rect>
         </property>
         <property name="selectionMode">
@@ -228,8 +237,8 @@
        <widget class="QCheckBox" name="cbDateInc">
         <property name="geometry">
          <rect>
-          <x>80</x>
-          <y>130</y>
+          <x>670</x>
+          <y>80</y>
           <width>121</width>
           <height>39</height>
          </rect>
@@ -241,8 +250,8 @@
        <widget class="QCheckBox" name="cbHeureInc">
         <property name="geometry">
          <rect>
-          <x>80</x>
-          <y>180</y>
+          <x>670</x>
+          <y>130</y>
           <width>351</width>
           <height>39</height>
          </rect>
@@ -256,7 +265,7 @@
        <property name="geometry">
         <rect>
          <x>700</x>
-         <y>310</y>
+         <y>160</y>
          <width>681</width>
          <height>47</height>
         </rect>
@@ -266,7 +275,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>310</y>
+         <y>160</y>
          <width>661</width>
          <height>39</height>
         </rect>
@@ -279,7 +288,7 @@
        <property name="geometry">
         <rect>
          <x>20</x>
-         <y>210</y>
+         <y>60</y>
          <width>311</width>
          <height>81</height>
         </rect>
@@ -291,10 +300,10 @@
       <widget class="QGroupBox" name="groupBox_2">
        <property name="geometry">
         <rect>
-         <x>10</x>
-         <y>400</y>
+         <x>20</x>
+         <y>240</y>
          <width>1021</width>
-         <height>261</height>
+         <height>291</height>
         </rect>
        </property>
        <property name="title">
@@ -360,7 +369,7 @@
        <property name="geometry">
         <rect>
          <x>1410</x>
-         <y>310</y>
+         <y>160</y>
          <width>271</width>
          <height>48</height>
         </rect>
@@ -368,10 +377,16 @@
        <property name="text">
         <string>Test avec EDD</string>
        </property>
+       <property name="default">
+        <bool>true</bool>
+       </property>
       </widget>
      </widget>
     </widget>
     <widget class="QWidget" name="tabPendant">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
      <attribute name="title">
       <string>Pendant mission</string>
      </attribute>

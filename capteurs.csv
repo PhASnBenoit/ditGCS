@@ -1,4 +1,10 @@
-Capteur LM76;I2C;(Temp)
-Capteur HCM5883;I2C;(Compas 3 axes)
-Capteur HTU21D;I2C;(Hum+Temp)
+# Fichier d'initialisation de l'application embarquée sur le drone
+# Syntaxe :
+# numéroDeLaMesure;adresse;posL;posC;classe C++;nomMesure;symboleUnité;texteUnité
+# numéroDeLaMesure : unique entre 0 et 9.
+#0;38;1;1;CCapteurI2cLm76_Temp;Temperature;oC;degres
+0;1E;1;1;CCapteurI2cHmc5883_Comp;Declinaison;O;degres
+1;40;10;1;CCapteurI2cHtu21d_HumTemp;HetT;%etO;degres
+2;15;13;20;CCapteurGpioPing_Dist;Distance;cm;centimetres
+#3;00;2;1;CCapteurSerialGps;Localisation;LgLt;Longitude Latitude
 
