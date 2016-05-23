@@ -6,6 +6,7 @@ MainIhm::MainIhm(QWidget *parent) :
     ui(new Ui::MainIhm)
 {
     ui->setupUi(this);
+    ui->statusBar->showMessage("Choisissez le port série de la liaison DATA !");
     ui->tabWidget->setTabEnabled(0,true);
     ui->tabWidget->setTabEnabled(1,false);
     ui->tabWidget->setTabEnabled(2,false);
@@ -74,16 +75,20 @@ void MainIhm::on_pbTransfertDrone_clicked()
     bool res=emettre((char *)"\x02[TT]\x03",6);
 
     if (res > 0) {  // test ok
+        ui->statusBar->showMessage("Test de la liaison DATA OK.");
         // envoi des informations de configuration vers le drone.
         qDebug() << "envoi de la commande [03] DATA CONFIG MISSION...";
         sprintf(ordre,"%s;%s", ui->leNomMission->text().toStdString().c_str(), (ui->cbMesure->isChecked()?"1":"0"));
         crc16c = crc16((unsigned char *)ordre,strlen(ordre));
         sprintf(chCrc16,"%04x",crc16c);
         sprintf(trame,"\x02[03]%s;%s\x03", ordre, chCrc16);
-        emettre(trame,strlen(trame));
-
+        res = emettre(trame,strlen(trame));
+        if (res > 0)
+            ui->statusBar->showMessage("Configuration de la mission OK.");
+        else
+            ui->statusBar->showMessage("Configuration de la mission HS.");
         // envoi des informations d'incrustation
-        qDebug() << "envoi de la commande [04] DATA INCRUSTATION DEPART MISSION...";
+        qDebug() << "envoi de la commande [04] CONFIG CAPTEURS...";
         // ouvrir le fichier config.ini contenant les capteurs
         QFile *file = new QFile("capteurs.csv");
         if (!file->open(QIODevice::ReadOnly | QIODevice::Text))
@@ -109,7 +114,11 @@ void MainIhm::on_pbTransfertDrone_clicked()
         crc16c = crc16((unsigned char *)ordre,strlen(ordre));
         sprintf(chCrc16,"%04x",crc16c);
         sprintf(trame, "\x02[04]%s;%s\x03", ordre, chCrc16);
-        emettre(trame,strlen(trame));
+        res=emettre(trame,strlen(trame));
+        if (res > 0)
+            ui->statusBar->showMessage("Configuration capteurs OK.");
+        else
+            ui->statusBar->showMessage("Configuration capteurs HS.");
 
         // Mise à jour de la date et heure de l'EDD
         qDebug() << "envoi de la commande [09] Mise à jour de la date/heure de l'EDD...";
@@ -120,11 +129,20 @@ void MainIhm::on_pbTransfertDrone_clicked()
         crc16c = crc16((unsigned char *)ordre,strlen(ordre));
         sprintf(chCrc16,"%04x",crc16c);
         sprintf(trame,"\x02[09]%s;%s\x03", ordre, chCrc16);
-        emettre(trame,strlen(trame));
+        res=emettre(trame,strlen(trame));
+        if (res > 0)
+            ui->statusBar->showMessage("Mise à jour de la date/heure OK.");
+        else
+            ui->statusBar->showMessage("Mise à jour de la date/heure HS.");
 
         // envoi du départ mission
         qDebug() << "envoi de la commande [00] START MISSION...";
-        emettre((char *)"\x02[00]\x03",6);
+        res=emettre((char *)"\x02[00]\x03",6);
+        if (res > 0)
+            ui->statusBar->showMessage("Ordre START Mission OK.");
+        else
+            ui->statusBar->showMessage("Ordre START Mission HS.");
+
         ui->tabWidget->setTabEnabled(0,false);
         ui->tabWidget->setTabEnabled(1,true);
         ui->tabWidget->setTabEnabled(2,false);
@@ -137,7 +155,12 @@ void MainIhm::on_pbStopperMission_clicked()
     qDebug() << "STOPPER MISSION !";
     on_pbArretAcqMes_clicked();
     qDebug() << "envoi de la commande [99] STOP MISSION...";
-    emettre((char *)"\x02[99]\x03",6);
+    int res=emettre((char *)"\x02[19]\x03",6);
+    if (res > 0)
+        ui->statusBar->showMessage("Ordre STOP Mission OK.");
+    else
+        ui->statusBar->showMessage("Ordre STOP Mission HS.");
+
     ui->tabWidget->setTabEnabled(0,false);
     ui->tabWidget->setTabEnabled(1,false);
     ui->tabWidget->setTabEnabled(2,true);
@@ -156,10 +179,12 @@ void MainIhm::on_pbTestData_clicked()
 {
     qDebug() << "envoi de la commande [TT] TEST...";
     int res = emettre((char *)"\x02[TT]\x03",6);
-    if (res == 1) {
+    if (res > 0) {
+        ui->statusBar->showMessage("Test de la liaison DATA OK");
         ui->pbTransfertDrone->setEnabled(true);
         qDebug() << "MainIhm::on_pbTestData_clicked: Test positif !!!";
     }else {
+        ui->statusBar->showMessage("Test de la liaison DATA HS !");
         qDebug() << "MainIhm::on_pbTestData_clicked: Test négatif !!!";
     } // else
 } // on_pbTestData_clicked
@@ -185,14 +210,24 @@ void MainIhm::on_pbDepartAcqMes_clicked()
     sprintf(chCrc16,"%04x",crc16c);
 
     sprintf(trame,"\x02[01]%s;%s\x03",chTimer, chCrc16);
-    emettre(trame, strlen(trame));
+    int res=emettre(trame, strlen(trame));
+    if (res > 0)
+        ui->statusBar->showMessage("Ordre START acquisition des mesures OK.");
+    else
+        ui->statusBar->showMessage("Ordre START acquisition des mesures HS.");
+
 } // on_pbDepartAcqMes_clicked
 
 
 void MainIhm::on_pbArretAcqMes_clicked()
 {
     qDebug() << "envoi de la commande [02] ARRET MESURES...";
-    emettre((char *)"\x02[02]\x03",6);
+    int res=emettre((char *)"\x02[02]\x03",6);
+    if (res > 0)
+        ui->statusBar->showMessage("Ordre STOP acquisition mesures OK.");
+    else
+        ui->statusBar->showMessage("Ordre STOP acquisition mesures HS.");
+
 } // on_pbArretAcqMes_clicked
 
 
@@ -217,7 +252,12 @@ void MainIhm::on_pbEmettreOrdre_clicked()
     sprintf(chCrc16,"%04x",crc16c);
 
     sprintf(trame, "\x02[05]%s;%s\x03", ordre, chCrc16);
-    emettre(trame, strlen(trame));
+    int res=emettre(trame, strlen(trame));
+    if (res > 0)
+        ui->statusBar->showMessage("Ordre caméra OK.");
+    else
+        ui->statusBar->showMessage("Ordre caméra HS.");
+
 } // on_pbEmettreOrdre_clicked
 
 
@@ -306,10 +346,12 @@ int MainIhm::initVoieSerie(QString nomVs)
     serial->setFlowControl(QSerialPort::NoFlowControl);
     if (serial->open(QIODevice::ReadWrite)) {
         serial->setRequestToSend(false);
+        ui->statusBar->showMessage("Ouverture de la liaison DATA OK !");
         qDebug() << "MainIhm::initVoieSerie: Connected to " << nomVs;
         connect(serial, SIGNAL(readyRead()), this, SLOT(onReadyRead()));
         return 1;
     } else {
+        ui->statusBar->showMessage("Impossible d'ouvrir la liaison DATA !");
         qDebug() << "MainIhm::initVoieSerie: Impossible to connect to " << nomVs;
         return -1;
     }
